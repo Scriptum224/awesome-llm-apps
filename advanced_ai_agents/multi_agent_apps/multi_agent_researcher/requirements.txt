@@ -1,4 +1,7 @@
-streamlit 
-ag2[Gemini]
-Gemini
-
+streamlit
+agno
+google-genai
+ddgs
+newspaper4k
+lxml_html_clean
+httpx
