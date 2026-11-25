@@ -1,33 +1,36 @@
-# Import the required libraries
 import streamlit as st
 from agno.agent import Agent
 from agno.run.agent import RunOutput
-from agno.models.openai import OpenAIChat
+from agno.models.google import Gemini
 from agno.team import Team
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.hackernews import HackerNewsTools
 from agno.tools.newspaper4k import Newspaper4kTools
 import os
 
-# Set up the Streamlit app
 st.title("Multi-Agent AI Researcher 🔍🤖")
-st.caption("This app allows you to research top stories and users on HackerNews and write blogs, reports and social posts.")
+st.caption("Recherche sur HackerNews et le web, puis rédaction de rapports et de posts.")
 
-# Get OpenAI API key from user
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-os.environ["OPENAI_API_KEY"] = openai_api_key
+MODEL_ID = "gemini-2.5-flash"  # à vérifier selon les modèles disponibles sur ton compte
 
-if openai_api_key:
+# Clé Google : Secrets Streamlit en priorité, sinon saisie manuelle
+google_api_key = st.secrets.get("GOOGLE_API_KEY", "") if hasattr(st, "secrets") else ""
+if not google_api_key:
+    google_api_key = st.text_input("Google API Key", type="password")
+
+if google_api_key:
+    os.environ["GOOGLE_API_KEY"] = google_api_key
+
     hn_researcher = Agent(
         name="HackerNews Researcher",
-        model=OpenAIChat(id="gpt-4o-mini"),
+        model=Gemini(id=MODEL_ID),
         role="Gets top stories from hackernews.",
         tools=[HackerNewsTools()],
     )
 
     web_searcher = Agent(
         name="Web Searcher",
-        model=OpenAIChat(id="gpt-4o-mini"),
+        model=Gemini(id=MODEL_ID),
         role="Searches the web for information on a topic",
         tools=[DuckDuckGoTools()],
         add_datetime_to_context=True,
@@ -35,14 +38,14 @@ if openai_api_key:
 
     article_reader = Agent(
         name="Article Reader",
-        model=OpenAIChat(id="gpt-4o-mini"),
+        model=Gemini(id=MODEL_ID),
         role="Reads articles from URLs.",
         tools=[Newspaper4kTools()],
     )
 
     hackernews_team = Team(
         name="HackerNews Team",
-        model=OpenAIChat(id="gpt-4o-mini"),
+        model=Gemini(id=MODEL_ID),
         members=[hn_researcher, web_searcher, article_reader],
         instructions=[
             "First, search hackernews for what the user is asking about.",
@@ -52,14 +55,13 @@ if openai_api_key:
             "Finally, provide a thoughtful and engaging summary.",
         ],
         markdown=True,
-        debug_mode=True,
+        debug_mode=False,
         show_members_responses=True,
     )
 
-    # Input field for the report query
-    query = st.text_input("Enter your report query")
+    query = st.text_input("Entre ta requête de rapport")
 
     if query:
-        # Get the response from the assistant
-        response: RunOutput = hackernews_team.run(query, stream=False)
+        with st.spinner("Recherche en cours..."):
+            response: RunOutput = hackernews_team.run(query, stream=False)
         st.write(response.content)
